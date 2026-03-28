@@ -7,118 +7,96 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ============================================================
-  // REEMPLAZA CON TU CONFIG REAL DE FIREBASE
-  // Obtén estos valores en: https://console.firebase.google.com
-  // ============================================================
   const firebaseConfig = {
-  apiKey: "AIzaSyC0mC5o9FR1ofNxogqcoJ415tYBunXRUGo",
-  authDomain: "rappi-ops.firebaseapp.com", // Asegúrate de que diga esto
-  projectId: "rappi-ops",
-  storageBucket: "rappi-ops.firebasestorage.app",
-  messagingSenderId: "309876441504",
-  appId: "1:309876441504:web:2dacb34b1a638b77faa4c5"
-};
+    apiKey: "AIzaSyC0mC5o9FR1ofNxogqcoJ415tYBunXRUGo",
+    authDomain: "rappi-ops.firebaseapp.com",
+    projectId: "rappi-ops",
+    storageBucket: "rappi-ops.firebasestorage.app",
+    messagingSenderId: "309876441504",
+    appId: "1:309876441504:web:2dacb34b1a638b77faa4c5"
+  };
 
-  let fbApp, db, auth, provider;
-  try {
-    fbApp = initializeApp(firebaseConfig);
-    db = getFirestore(fbApp);
-    auth = getAuth(fbApp);
-    provider = new GoogleAuthProvider();
-    window._db = db;
-  } catch(e) { console.warn("Firebase no configurado:", e.message); }
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+  const auth = getAuth(fbApp);
+  const provider = new GoogleAuthProvider();
+  window._db = db;
 
+  // 1. Manejar el resultado de la redirección al cargar la página
+  getRedirectResult(auth).then(async (result) => {
+    if (result && result.user) {
+      const user = result.user;
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      if (!userDoc.exists()) {
+        // Si es nuevo, lo creamos como pendiente
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid, email: user.email,
+          displayName: user.displayName, photoURL: user.photoURL,
+          status: "pending", role: "viewer", ciudad: "", createdAt: serverTimestamp()
+        });
+        await signOut(auth);
+        showAuthMsg("Solicitud enviada. Espera aprobación del administrador.");
+      }
+    }
+  }).catch((e) => {
+    console.error("Error en redirección:", e);
+    showAuthMsg("Error: " + e.message);
+  });
+
+  // 2. Función para iniciar sesión
   window.signInGoogle = async () => {
-  if(!auth) { showAuthMsg("Firebase no configurado."); return; }
-  try {
-    // Usamos Redirect en lugar de Popup para evitar que la ventana se cierre sola
-    await signInWithRedirect(auth, provider);
-  } catch(e) { showAuthMsg("Error: " + e.message); }
-};
-        await signOut(auth);
-        showAuthMsg("Tu solicitud de acceso fue enviada. Espera aprobación del administrador.");
-        return;
-      }
-      if (userDoc.data().status !== "approved") {
-        await signOut(auth);
-        showAuthMsg("Tu cuenta aún no ha sido aprobada. Contacta al administrador.");
-        return;
-      }
+    if(!auth) { showAuthMsg("Firebase no configurado."); return; }
+    try {
+      await signInWithRedirect(auth, provider);
     } catch(e) { showAuthMsg("Error: " + e.message); }
   };
 
+  // 3. Función para cerrar sesión
   window.signOutUser = async () => {
     if(auth) await signOut(auth);
-    window._currentUser = null; window._currentRole = null; window._userCiudad = null;
-    showLoginScreen();
+    window._currentUser = null;
+    location.reload(); // Recarga para limpiar estado
   };
 
-  if(auth) onAuthStateChanged(auth, async (user) => {
+  // 4. Escuchar cambios de estado del usuario
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists() && userDoc.data().status === "approved") {
         window._currentUser = user;
         window._currentRole = userDoc.data().role;
         window._userCiudad = userDoc.data().ciudad || null;
-        showApp();
+        
+        showApp(); // Esta función debe estar definida abajo en tu código
+        
         document.getElementById("user-name").textContent = user.displayName;
         document.getElementById("user-photo").src = user.photoURL || "";
         document.getElementById("user-role-badge").textContent = window._currentRole;
-        if (window._currentRole === "admin") document.getElementById("admin-tab").style.display = "flex";
-        if (window._currentRole === "city_manager" && window._userCiudad) window._filteredCiudad = window._userCiudad;
-        loadAdminDataFB();
+        
+        if (window._currentRole === "admin") {
+            const adminTab = document.getElementById("admin-tab");
+            if(adminTab) adminTab.style.display = "flex";
+        }
+        
+        if (window._currentRole === "city_manager" && window._userCiudad) {
+            window._filteredCiudad = window._userCiudad;
+        }
+        
+        if (window.loadAdminDataFB) window.loadAdminDataFB();
       } else if(user) {
         await signOut(auth);
-        showAuthMsg("Cuenta pendiente de aprobación del administrador.");
+        showAuthMsg("Cuenta pendiente de aprobación.");
       }
-    } else { showLoginScreen(); }
+    } else { 
+      if(typeof showLoginScreen === "function") showLoginScreen(); 
+    }
   });
 
-  window.loadAdminDataFB = async () => {
-    if (window._currentRole !== "admin" || !db) return;
-    try {
-      const snap = await getDocs(collection(db, "users"));
-      const users = [];
-      snap.forEach(d => users.push({id: d.id, ...d.data()}));
-      renderAdminUsers(users);
-    } catch(e) { console.log(e); }
-  };
-
-  window.approveUser = async (uid, role, ciudad) => {
-    if(!db) return;
-    await updateDoc(doc(db, "users", uid), { status: "approved", role, ciudad, updatedAt: serverTimestamp() });
-    window.loadAdminDataFB();
-  };
-
-  window.deleteUserFB = async (uid) => {
-    if(!db) return;
-    await deleteDoc(doc(db, "users", uid));
-    window.loadAdminDataFB();
-  };
-
-  window.saveObservation = async (mes, ciudad, tienda, rubro, obs) => {
-    if (!window._currentUser || !db) return;
-    const key = (mes+'_'+ciudad+'_'+tienda+'_'+rubro).replace(/[^a-zA-Z0-9_]/g, '_').substring(0,500);
-    await setDoc(doc(db, "observaciones", key), {
-      mes, ciudad, tienda, rubro, obs,
-      userId: window._currentUser.uid, userName: window._currentUser.displayName,
-      updatedAt: serverTimestamp()
-    });
-  };
-
-  window.loadObservations = async (mes, ciudad) => {
-    if(!db) return {};
-    const q = query(collection(db, "observaciones"), where("mes", "==", mes), where("ciudad", "==", ciudad));
-    const snap = await getDocs(q);
-    const obs = {};
-    snap.forEach(d => { obs[d.data().tienda + "|" + d.data().rubro] = d.data().obs; });
-    return obs;
-  };
 </script>
 <style>
 
