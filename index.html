@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ============================================================
@@ -17,7 +17,7 @@
   // ============================================================
   const firebaseConfig = {
   apiKey: "AIzaSyC0mC5o9FR1ofNxogqcoJ415tYBunXRUGo",
-  authDomain: "rappi-ops.vercel.app",
+  authDomain: "rappi-ops.firebaseapp.com", // Asegúrate de que diga esto
   projectId: "rappi-ops",
   storageBucket: "rappi-ops.firebasestorage.app",
   messagingSenderId: "309876441504",
@@ -34,17 +34,12 @@
   } catch(e) { console.warn("Firebase no configurado:", e.message); }
 
   window.signInGoogle = async () => {
-    if(!auth) { showAuthMsg("Firebase no configurado. Ver instrucciones."); return; }
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const userDoc = await getDoc(doc(db, "users", result.user.uid));
-      if (!userDoc.exists()) {
-        // First time - create pending user
-        await setDoc(doc(db, "users", result.user.uid), {
-          uid: result.user.uid, email: result.user.email,
-          displayName: result.user.displayName, photoURL: result.user.photoURL,
-          status: "pending", role: "viewer", ciudad: "", createdAt: serverTimestamp()
-        });
+  if(!auth) { showAuthMsg("Firebase no configurado."); return; }
+  try {
+    // Usamos Redirect en lugar de Popup para evitar que la ventana se cierre sola
+    await signInWithRedirect(auth, provider);
+  } catch(e) { showAuthMsg("Error: " + e.message); }
+};
         await signOut(auth);
         showAuthMsg("Tu solicitud de acceso fue enviada. Espera aprobación del administrador.");
         return;
