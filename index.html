@@ -602,58 +602,54 @@ function renderPpto() {
 
 // ─── DRIVE / COMPROBANTES ─────────────────────────────────────────────────
 function buildDriveSels(){
-  const mSel=q('dr-mes'),cSel=q('dr-ciudad'),tSel=q('dr-tienda');
+  const mSel=q('dr-mes'), cSel=q('dr-ciudad'), tSel=q('dr-tienda');
   const keys=Object.keys(meses).sort();
   mSel.innerHTML='<option value="">Selecciona mes</option>';
   keys.forEach(k=>{
     const base=k.replace(/_cerrado|_preliminar/g,'');
-    const[y,m]=base.split('-');
-    const o=document.createElement('option');o.value=k;o.textContent=(MNF[m]||m)+' '+y;mSel.appendChild(o);
+    const [y,m]=base.split('-');
+    const o=document.createElement('option'); o.value=k; o.textContent=(MNF[m]||m)+' '+y; mSel.appendChild(o);
   });
   cSel.innerHTML='<option value="">Selecciona ciudad</option>';
-  CIUDADES.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cSel.appendChild(o);});
+  CIUDADES.forEach(c=>{const o=document.createElement('option'); o.value=c; o.textContent=c; cSel.appendChild(o);});
   tSel.innerHTML='<option value="">Todas las tiendas</option>';
 }
 
 function extractFolderId(link) {
-  // Handles: /folders/ID, /drive/folders/ID?..., id=ID
   const m1=link.match(/folders\/([a-zA-Z0-9_-]{10,})/);
-  if(m1)return m1[1];
+  if(m1) return m1[1];
   const m2=link.match(/id=([a-zA-Z0-9_-]{10,})/);
-  if(m2)return m2[1];
+  if(m2) return m2[1];
   return null;
 }
 
 async function conectarDrive(){
   const link=q('drive-link').value.trim();
-  if(!link){alert('Pega el link de la carpeta de Drive.');return;}
+  if(!link){alert('Pega el link de la carpeta de Drive.'); return;}
   const fid=extractFolderId(link);
-  if(!fid){alert('Link de Drive no reconocido. Asegúrate de copiar el link completo de la carpeta.');return;}
+  if(!fid){alert('Link de Drive no reconocido.'); return;}
 
   const statusEl=q('drive-status');
   statusEl.innerHTML='<span class="dot dam"></span><span style="color:var(--amber);">Verificando acceso...</span>';
 
-  // Try to list files via Google Drive API (public folder)
   try{
-    // Use the Files API to list files in the folder (works if folder is shared publicly)
-    const url='https://www.googleapis.com/drive/v3/files?q=''+fid+''+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime,size)&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&pageSize=200';
+    // Corregido: Uso de backticks (comillas invertidas) para la URL
+    const url=`https://www.googleapis.com/drive/v3/files?q='${fid}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime,size)&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&pageSize=200`;
     const resp=await fetch(url);
     if(!resp.ok){
-      // Folder not public or needs auth
-      statusEl.innerHTML='<span class="dot dr"></span><span style="color:var(--red);">Acceso denegado. Verifica que la carpeta esté compartida como "Cualquier persona con el enlace puede ver".</span>';
+      statusEl.innerHTML='<span class="dot dr"></span><span style="color:var(--red);">Acceso denegado. Verifica que la carpeta sea pública.</span>';
       return;
     }
     const data=await resp.json();
     driveFolderId=fid;
     driveConnected=true;
 
-    // Index files recursively
-    driveFiles={folderId:fid,files:data.files||[]};
-    statusEl.innerHTML='<span class="dot dg"></span><span>Conectado · '+driveFiles.files.length+' archivos en la raíz</span>';
+    driveFiles={folderId:fid, files:data.files||[]};
+    statusEl.innerHTML=`<span class="dot dg"></span><span>Conectado · ${driveFiles.files.length} archivos en la raíz</span>`;
 
     buildDriveSels();
   }catch(e){
-    statusEl.innerHTML='<span class="dot dr"></span><span style="color:var(--red);">Error: '+e.message+'</span>';
+    statusEl.innerHTML=`<span class="dot dr"></span><span style="color:var(--red);">Error: ${e.message}</span>`;
   }
 }
 
@@ -661,31 +657,32 @@ async function renderDrive(){
   const el=q('drive-cont');
   const mes=q('dr-mes').value, ciudad=q('dr-ciudad').value, tiendaSel=q('dr-tienda').value;
 
-  if(!mes){el.innerHTML='<div class="card"><div class="empty">Selecciona un mes.</div></div>';return;}
+  if(!mes){el.innerHTML='<div class="card"><div class="empty">Selecciona un mes.</div></div>'; return;}
 
-  // Get utility data from the selected month's report
   const res=meses[mes];
-  if(!res){el.innerHTML='<div class="card"><div class="empty">No hay datos del reporte para este mes. Carga primero el archivo Excel.</div></div>';return;}
+  if(!res){el.innerHTML='<div class="card"><div class="empty">No hay datos del reporte para este mes. Carga primero el archivo Excel.</div></div>'; return;}
 
   const base=mes.replace(/_cerrado|_preliminar/g,'');
-  const[yr,mn]=base.split('-');
+  const [yr,mn]=base.split('-');
   const mesLabel=(MNF[mn]||mn)+' '+yr;
 
-  // Build list of expected utility payments per tienda
   const expected=[];
-  const filteredCiudades=ciudad?{[ciudad]:res[ciudad]}:res;
-  Object.entries(filteredCiudades).forEach(([cKey,tiendas])=>{
-    if(!tiendas)return;
-    const filtT=tiendaSel?{[tiendaSel]:tiendas[tiendaSel]}:tiendas;
-    Object.entries(filtT).forEach(([tienda,rubros])=>{
-      if(!rubros)return;
-      Object.entries(rubros).forEach(([rubro,valor])=>{
-        if(isUtil(rubro)&&valor>0){
-          expected.push({ciudad:cKey,tienda,rubro,valor,mes:mesLabel});
+  const filteredCiudades=ciudad ? {[ciudad]:res[ciudad]} : res;
+  
+  Object.entries(filteredCiudades).forEach(([cKey, tiendas])=>{
+    if(!tiendas) return;
+    const filtT=tiendaSel ? {[tiendaSel]:tiendas[tiendaSel]} : tiendas;
+    Object.entries(filtT).forEach(([tienda, rubros])=>{
+      if(!rubros) return;
+      Object.entries(rubros).forEach(([rubro, valor])=>{
+        if(isUtil(rubro) && valor > 0){
+          expected.push({ciudad:cKey, tienda, rubro, valor, mes:mesLabel});
         }
       });
     });
   });
+  // ... sigue el código de renderizado
+}
 
   if(!expected.length){
     el.innerHTML='<div class="card"><div class="empty">No hay rubros de servicios públicos registrados para este período y ciudad.</div></div>';
