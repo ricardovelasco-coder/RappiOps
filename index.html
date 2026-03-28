@@ -899,14 +899,24 @@ function renderMesList(){
   const el=q('meses-list');
   const keys=[...new Set([...Object.keys(meses),...Object.keys(ppto)])].sort();
   if(!keys.length){el.innerHTML='<div class="empty">—</div>';return;}
+  
   el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;">'+
     keys.map(k=>{
-      const base=k.replace(/_cerrado|_preliminar/g,'');const[y,m]=base.split('-');
-      const pre=k.indexOf('pre')>=0,isBase=k==='2026-01'||k==='2026-02';
-      return '<div style="background:var(--bg2);border:1px solid '+(isBase?'rgba(74,158,255,.35)':'var(--b)')+';border-radius:9px;padding:11px;cursor:pointer;" onclick="goMes(''+k+'')">'+
-        '<div style="font-size:12px;font-weight:700;">'+(MNF[m]||m)+' '+y+'</div>'+
-        '<div style="font-size:10px;margin-top:3px;color:'+(pre?'var(--amber)':'var(--green)')+';">● '+(pre?'Preliminar':'Cerrado')+(isBase?' · Base':'')+'</div></div>';
-    }).join('')+'</div>';
+      const base=k.replace(/_cerrado|_preliminar/g,'');
+      const [y,m]=base.split('-');
+      const pre=k.indexOf('pre')>=0;
+      const isBase=k==='2026-01'||k==='2026-02';
+      
+      // Corregido: Usamos backticks para que las comillas no choquen
+      return `
+        <div style="background:var(--bg2); border:1px solid ${isBase ? 'rgba(74,158,255,.35)' : 'var(--b)'}; border-radius:9px; padding:11px; cursor:pointer;" 
+             onclick="goMes('${k}')">
+          <div style="font-size:12px; font-weight:700;">${MNF[m]||m} ${y}</div>
+          <div style="font-size:10px; margin-top:3px; color:${pre ? 'var(--amber)' : 'var(--green)'};">
+            ● ${pre ? 'Preliminar' : 'Cerrado'}${isBase ? ' · Base' : ''}
+          </div>
+        </div>`;
+    }).join('') + '</div>';
 }
 function goMes(k){resMes=k;nav('resumen');setTimeout(()=>{buildChips();renderRes();},50);}
 
