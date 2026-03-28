@@ -634,7 +634,7 @@ async function conectarDrive(){
 
   try{
     // Corregido: Uso de backticks (comillas invertidas) para la URL
-    const url=`https://www.googleapis.com/drive/v3/files?q='${fid}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime,size)&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&pageSize=200`;
+    const url = `https://www.googleapis.com/drive/v3/files?q='${fid}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,modifiedTime,size)&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&pageSize=200`;
     const resp=await fetch(url);
     if(!resp.ok){
       statusEl.innerHTML='<span class="dot dr"></span><span style="color:var(--red);">Acceso denegado. Verifica que la carpeta sea pública.</span>';
