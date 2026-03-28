@@ -418,7 +418,7 @@ function buildCiudades() {
   const cs = getCiudades();
   if (!resCiudad && cs.length) resCiudad = cs[0];
   el.innerHTML = cs.map(c =>
-    '<button class="cbtn' + (resCiudad === c ? ' active' : '') + '" onclick="setRC('' + c + '')">' + c + '</button>'
+ `<button class="cbtn ${resCiudad === c ? 'active' : ''}" onclick="setRC('${c}')">${c}</button>`
   ).join('');
 }
 
