@@ -416,9 +416,9 @@ function getCiudades() {
 function buildCiudades() {
   const el = q('res-ciudades');
   const cs = getCiudades();
-  if (!resCiudad && cs.length) resCiudad = cs[0];
-  el.innerHTML = cs.map(c =>
- `<button class="cbtn ${resCiudad === c ? 'active' : ''}" onclick="setRC('${c}')">${c}</button>`
+if (!resCiudad && cs.length) resCiudad = cs[0];
+  el.innerHTML = cs.map(c => 
+    `<button class="cbtn ${resCiudad === c ? 'active' : ''}" onclick="setRC('${c}')">${c}</button>`
   ).join('');
 }
 
@@ -436,8 +436,9 @@ function buildChips() {
     const base = k.replace(/_cerrado|_preliminar/g, '');
     const [y, m] = base.split('-');
     const pre = k.indexOf('pre') >= 0;
-    return '<span class="chip' + (pre ? ' pre' : '') + (resMes === k ? ' active' : '') +
-      '" onclick="setRM('' + k + '',this)">' + (MN[m]||m) + ' ' + y + (pre ? ' ★' : '') + '</span>';
+    // Corregido: Uso de backticks para evitar errores de comillas en el onclick
+    return `<span class="chip ${pre ? 'pre' : ''} ${resMes === k ? 'active' : ''}" 
+            onclick="setRM('${k}', this)">${MN[m] || m} ${y} ${pre ? ' ★' : ''}</span>`;
   }).join('');
 }
 
